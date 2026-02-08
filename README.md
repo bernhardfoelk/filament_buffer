@@ -2,7 +2,7 @@
 
 This project is an automated filament delivery system (buffer) for 3D printers. It monitors filament tension and presence to actively "push" material toward the printer, reducing the load on the printer's own extruder—especially useful for large setups or high-speed printing.
 
-![Filament buffer](images/filament_buffer.HEIC)
+![Filament buffer](images/filament_buffer.png)
 
 ## 🚀 The Engineering Behind It
 While many buffers are passive, this is an **active system** controlled by an ESP32 and a stepper motor.
