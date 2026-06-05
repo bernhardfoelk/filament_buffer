@@ -14,31 +14,29 @@ bool lxJogPos = false;
 bool lxJogNeg = false;
 
 // Inputs
-bool lxFilamentPresent = false;
-bool lxEndposPos = false;
-bool lxEndposNeg = false;
-bool lxFeedForw = false;
-bool lxFeedBackw = false;
+bool ixFilamentPresent = false;
+bool ixEndposPos = false;
+bool ixEndposNeg = false;
+bool ixFeedForw = false;
+bool ixFeedBackw = false;
 
 // Stepper motor
-Stepper Extruder;
+FastAccelStepperEngine engine = FastAccelStepperEngine();
+FastAccelStepper *extruder = NULL; // Pointer auf den Motor
 
 // Timer
 Ton TonStep;
 Ton TonStepF;
-Ton TonFilamentSensor;
 Ton TonStartFeeding;
 Ton TonFeedForw;
 Ton TonFeedBackw;
 
 // Edge detection for buttons
-EdgePosNeg Edge_FilamentPresent;
 EdgePosNeg Edge_EndstopPos;
 EdgePosNeg Edge_EndstopNeg;
 EdgePosNeg Edge_FeedForw;
 EdgePosNeg Edge_FeedBackw;
 
-Ton TonDebounceFilamentSensor;
 Ton TonDebounceFeedForw;
 Ton TonDebounceFeedBackw;
 Ton TonDebounceEndstopPos;
@@ -46,9 +44,13 @@ Ton TonDebounceEndstopNeg;
 
 // Functions
 void readInputs();
+
 void updateEdges();
+
 void updateTimersAndJog();
+
 void runStateMachine();
+
 void debugStepChange();
 
 // -------------------------------------------------------------
@@ -62,14 +64,29 @@ void setup()
   pinMode(PIN_FEED_BACKW_BUTTON, INPUT_PULLUP);
   pinMode(PIN_ENDSTOP_NEGATIVE, INPUT_PULLUP);
   pinMode(PIN_ENDSTOP_POSITIVE, INPUT_PULLUP);
-  pinMode(PIN_FILAMENT_PRESENT, INPUT);
 
-  // Define Stepper
-  Extruder.setup(PIN_STEPPER_STEP, PIN_STEPPER_DIR, 1, 5);
+  /// FastAccelStepper initialisieren
+  engine.init();
+  extruder = engine.stepperConnectToPin(PIN_STEPPER_STEP);
+
+  if (extruder)
+  {
+    extruder->setDirectionPin(PIN_STEPPER_DIR);
+
+    // Invertierung falls nötig (entspricht setPinsInverted)
+    extruder->setDirectionPin(PIN_STEPPER_DIR, false);
+    extruder->setEnablePin(0xFFFF); // Falls kein physischer Enable-Pin genutzt wird
+
+    // Echte Hardware-Werte ohne Rechenfehler oder Überlauf!
+    extruder->setSpeedInHz(1000 * 2);
+    extruder->setAcceleration(8000 * 2);
+
+    extruder->setCurrentPosition(0);
+  }
 
   // Start serial interface
   Serial.begin(9600);
-  delay(500);
+  delay(2000);
   debugln("Debugging started..");
 }
 
@@ -79,7 +96,6 @@ void loop()
   updateEdges();
   runStateMachine();
   updateTimersAndJog();
-  Extruder.run();
   debugStepChange();
 }
 
@@ -89,53 +105,47 @@ void loop()
 
 void readInputs()
 {
-  TonDebounceFilamentSensor.IN(!(digitalRead(PIN_FILAMENT_PRESENT)));
-  TonDebounceFilamentSensor.PT(10);
-  TonDebounceFilamentSensor.run();
-  lxFilamentPresent = TonDebounceFilamentSensor.Q();
-
   TonDebounceEndstopPos.IN(digitalRead(PIN_ENDSTOP_POSITIVE));
   TonDebounceEndstopPos.PT(10);
   TonDebounceEndstopPos.run();
-  lxEndposPos = TonDebounceEndstopPos.Q();
+  ixEndposPos = TonDebounceEndstopPos.Q();
 
   TonDebounceEndstopNeg.IN(digitalRead(PIN_ENDSTOP_NEGATIVE));
   TonDebounceEndstopNeg.PT(10);
   TonDebounceEndstopNeg.run();
-  lxEndposNeg = TonDebounceEndstopNeg.Q();
-  
+  ixEndposNeg = TonDebounceEndstopNeg.Q();
+
   TonDebounceFeedForw.IN(!(digitalRead(PIN_FEED_FORW_BUTTON)));
   TonDebounceFeedForw.PT(10);
   TonDebounceFeedForw.run();
-  lxFeedForw = TonDebounceFeedForw.Q();
-  
+  ixFeedForw = TonDebounceFeedForw.Q();
+
   TonDebounceFeedBackw.IN(!(digitalRead(PIN_FEED_BACKW_BUTTON)));
   TonDebounceFeedBackw.PT(10);
   TonDebounceFeedBackw.run();
-  lxFeedBackw = TonDebounceFeedBackw.Q();
+  ixFeedBackw = TonDebounceFeedBackw.Q();
 }
 
 void updateEdges()
 {
-  Edge_FilamentPresent.run(lxFilamentPresent);
-  Edge_EndstopPos.run(lxEndposPos);
-  Edge_EndstopNeg.run(lxEndposNeg);
-  Edge_FeedForw.run(lxFeedForw);
-  Edge_FeedBackw.run(lxFeedBackw);
-
-  if (Edge_FilamentPresent.EdgePos()){
-    debugln("Filamentsensor: Positive Flanke!");
-  }
-  if (Edge_EndstopPos.EdgePos()){
+  Edge_EndstopPos.run(ixEndposPos);
+  Edge_EndstopNeg.run(ixEndposNeg);
+  Edge_FeedForw.run(ixFeedForw);
+  Edge_FeedBackw.run(ixFeedBackw);
+  if (Edge_EndstopPos.EdgePos())
+  {
     debugln("Endstop positiv: Positive Flanke!");
   }
-  if (Edge_EndstopNeg.EdgePos()){
+  if (Edge_EndstopNeg.EdgePos())
+  {
     debugln("Endstop negativ: Positive Flanke!");
   }
-  if (Edge_FeedForw.EdgePos()){
+  if (Edge_FeedForw.EdgePos())
+  {
     debugln("Sensor feed forward: Positive Flanke!");
   }
-  if (Edge_FeedBackw.EdgePos()){
+  if (Edge_FeedBackw.EdgePos())
+  {
     debugln("Sensor feed backward: Positive Flanke!");
   }
 }
@@ -144,24 +154,21 @@ void updateTimersAndJog()
 {
   // Timer call
   TonStep.run();
-  TonStep.IN(false);
+  // TonStep.IN(false);
 
   TonStepF.run();
-  TonStepF.IN(false);
-
-  TonFilamentSensor.run();
-  TonFilamentSensor.IN(false);
+  // TonStepF.IN(false);
 
   TonStartFeeding.run();
   TonStartFeeding.IN(false);
 
   // Jog buttons with delay
-  TonFeedForw.IN(lxFeedForw);
+  TonFeedForw.IN(ixFeedForw);
   TonFeedForw.PT(500);
   TonFeedForw.run();
   lxJogPos = TonFeedForw.Q();
 
-  TonFeedBackw.IN(lxFeedBackw);
+  TonFeedBackw.IN(ixFeedBackw);
   TonFeedBackw.PT(500);
   TonFeedBackw.run();
   lxJogNeg = TonFeedBackw.Q();
@@ -172,29 +179,18 @@ void runStateMachine()
   switch (liStep)
   {
   //***************************************
-  // Reset step
+  // Stop motor
   //***************************************
   case 0:
     if (lxEntryAction)
     {
+      extruder->stopMove();
       lxEntryAction = false;
     }
 
-    Extruder.reset();
-    liStep = 10;
-    break;
-
-  //***************************************
-  // Wait for power on
-  //***************************************
-  case 10:
-    if (lxEntryAction)
+    if (!extruder->isRunning())
     {
-      lxEntryAction = false;
-    }
-
-    if (Extruder.ready())
-    {
+      extruder->setCurrentPosition(0);
       liStep = 20;
     }
     break;
@@ -208,20 +204,18 @@ void runStateMachine()
       lxEntryAction = false;
     }
 
-    TonFilamentSensor.IN(lxFilamentPresent);
-    TonFilamentSensor.PT(500);
-    TonStartFeeding.IN(lxEndposNeg);
+    TonStartFeeding.IN(ixEndposNeg);
     TonStartFeeding.PT(10);
 
     if (lxJogPos)
     {
-      Extruder.jogPos();
+      liStep = 1000;
     }
     else if (lxJogNeg)
     {
-      Extruder.jogNeg();
+      liStep = 2000;
     }
-    else if (TonFilamentSensor.Q() && TonStartFeeding.Q())
+    else if (TonStartFeeding.Q())
     {
       liStep = 100;
     }
@@ -233,10 +227,13 @@ void runStateMachine()
   case 100:
     if (lxEntryAction)
     {
+
+      extruder->moveTo(-28000 * 2);
+
       lxEntryAction = false;
     }
 
-    if (Extruder.ready())
+    if (true)
     {
       liStep = 110;
     }
@@ -248,28 +245,57 @@ void runStateMachine()
   case 110:
     if (lxEntryAction)
     {
-      Extruder.setPosWay(30);    // 30mm
-      Extruder.setVelocity(120); // 120mm/s
-      Extruder.start(true);
-
       lxEntryAction = false;
     }
 
-    if (lxEndposPos)
+    if (ixEndposPos)
     {
       liStep = 0;
     }
-    else if (Extruder.finished() && !Extruder.error())
+    else if (extruder->stepsToStop() == 0)
     {
-      Extruder.start(false);
       liStep = 20;
     }
     break;
 
-  default:
-    // Fallback, if somethnig goes wrong
-    liStep = 0;
-    lxEntryAction = true;
+  //***************************************
+  // jog positive
+  //***************************************
+  case 1000:
+    if (lxEntryAction)
+    {
+      extruder->runForward();
+
+      lxEntryAction = false;
+    }
+
+    TonStep.IN(!lxJogPos);
+    TonStep.PT(50);
+
+    if (TonStep.Q())
+    {
+      liStep = 0;
+    }
+    break;
+
+  //***************************************
+  // jog negative
+  //***************************************
+  case 2000:
+    if (lxEntryAction)
+    {
+      extruder->runBackward();
+
+      lxEntryAction = false;
+    }
+
+    TonStep.IN(!lxJogNeg);
+    TonStep.PT(50);
+
+    if (TonStep.Q())
+    {
+      liStep = 0;
+    }
     break;
   }
 }
@@ -280,186 +306,9 @@ void debugStepChange()
   {
     liStepOld = liStep;
     lxEntryAction = true;
+    TonStep.IN(false);
+    TonStepF.IN(false);
     debug("Aktueller Schritt: ");
     debugln(liStep);
   }
 }
-
-/*
-
-void setup()
-{
-  // Define button pins as input
-  pinMode(PIN_FEED_FORW_BUTTON, INPUT);
-  pinMode(PIN_FEED_BACKW_BUTTON, INPUT);
-  pinMode(PIN_ENDSTOP_NEGATIVE, INPUT);
-  pinMode(PIN_ENDSTOP_POSITIVE, INPUT);
-  pinMode(PIN_FILAMENT_PRESENT, INPUT);
-
-  // Define Stepper
-  Extruder.setup(6, 7, 1, 5);
-
-  // Start serial interface
-  Serial.begin(9600);
-  delay(500);
-  debugln("Debugging started..");
-}
-
-void loop()
-{
-
-  // check inputs
-  lxFilamentPresent = (digitalRead(PIN_FILAMENT_PRESENT));
-  lxEndposPos = (digitalRead(PIN_ENDSTOP_POSITIVE));
-  lxEndposNeg = (digitalRead(PIN_ENDSTOP_NEGATIVE));
-  lxFeedForw = (digitalRead(PIN_FEED_FORW_BUTTON));
-  lxFeedBackw = (digitalRead(PIN_FEED_BACKW_BUTTON));
-
-  // Edge detection for buttons
-  Edge_FilamentPresent.run(lxFilamentPresent);
-  Edge_EndstopPos.run(lxEndposPos);
-  Edge_EndstopNeg.run(lxEndposNeg);
-  Edge_FeedForw.run(lxFeedForw);
-  Edge_FeedBackw.run(lxFeedBackw);
-
-  // State machine
-  switch (liStep)
-  {
-
-  //***************************************
-  // Reset step
-  //***************************************
-  case 0:
-    if (lxEntryAction)
-    {
-      lxEntryAction = false;
-    }
-
-    Extruder.reset();
-
-    liStep = 20;
-    break;
-
-  //***************************************
-  // Wait for power on
-  case 10:
-    if (lxEntryAction)
-    {
-      lxEntryAction = false;
-    }
-
-    if (Extruder.ready())
-    {
-
-      liStep = 20;
-    }
-    break;
-
-  //***************************************
-  // Main step
-  //***************************************
-  case 20:
-    if (lxEntryAction)
-    {
-      lxEntryAction = false;
-    }
-
-    TonFilamentSensor.IN(lxFilamentPresent);
-    TonFilamentSensor.PT(500);
-    TonStartFeeding.IN(lxEndposNeg);
-    TonStartFeeding.PT(10);
-
-    if (lxJogPos)
-    {
-      Extruder.jogPos();
-    }
-    else if (lxJogNeg)
-    {
-      Extruder.jogNeg();
-    }
-    else if (TonStep.Q() && TonStartFeeding.Q())
-    {
-      liStep = 100;
-    }
-
-    break;
-
-  //***************************************
-  // feed filament 30mm
-  //***************************************
-  case 100:
-    if (lxEntryAction)
-    {
-      lxEntryAction = false;
-    }
-
-    if (Extruder.ready())
-    {
-      liStep = 110;
-    }
-    break;
-
-  //***************************************
-  // feed filament 30mm
-  case 110:
-    if (lxEntryAction)
-    {
-      Extruder.setPosWay(30);    // 30mm
-      Extruder.setVelocity(120); // 120mm/s
-
-      Extruder.start(true);
-
-      lxEntryAction = false;
-    }
-
-    if (lxEndposPos)
-    {
-
-      liStep = 0;
-    }
-    else if (Extruder.finished() && !Extruder.error())
-    {
-
-      Extruder.start(false);
-
-      liStep = 20;
-    }
-    break;
-  }
-
-  // Timer call
-  TonStep.run();
-  TonStep.IN(false);
-
-  TonStepF.run();
-  TonStepF.IN(false);
-
-  TonFilamentSensor.run();
-  TonFilamentSensor.IN(false);
-
-  TonStartFeeding.run();
-  TonStartFeeding.IN(false);
-
-  TonFeedForw.IN(lxFeedForw);
-  TonFeedForw.PT(500);
-  TonFeedForw.run();
-  lxJogPos = TonFeedForw.Q();
-
-  TonFeedBackw.IN(lxFeedBackw);
-  TonFeedBackw.PT(500);
-  TonFeedBackw.run();
-  lxJogNeg = TonFeedBackw.Q();
-
-  // Stepper call
-  Extruder.run();
-
-  // Debug: log change of step variable
-  if (liStep != liStepOld)
-  {
-    liStepOld = liStep;
-    lxEntryAction = true;
-    debug("Aktueller Schritt: ");
-    debugln(liStep);
-  }
-}
-*/
