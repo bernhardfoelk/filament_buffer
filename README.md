@@ -4,32 +4,37 @@ This project is an automated filament delivery system (buffer) for 3D printers. 
 
 ![Filament buffer](images/filament_buffer.png)
 
+The entire system is fully assembled and soldered onto a permanent perfboard.
+
+![Filament buffer](images/filament_buffer_system.png)
+
 ## 🚀 The Engineering Behind It
-While many buffers are passive, this is an **active system** controlled by an ESP32 and a stepper motor.
+
+While many buffers are passive, this is an active system controlled by an ESP32 and a stepper motor.
 
 ### Technical Highlights:
-* **Custom Stepper Driver Class:** I wrote a dedicated driver for the **A4988** from scratch. It handles direction, stepping, and positioning without blocking the main loop, featuring integrated "Jog" modes for manual loading 
+* **AccelStepper Integration:** Utilizing the asynchronous `AccelStepper` library to handle precise step, direction, acceleration, and positioning without blocking the main state machine loop.
 * **Industrial Logic Patterns:** Like my other projects, this uses my custom `Ton` (On-Delay) and `EdgePosNeg` classes to debounce sensors and manage timing-sensitive transitions.
-* **Closed-Loop Logic:** The system uses filament sensors and endstops to determine when to feed more material or when to stop, preventing filament grinding or snapping.
-* **Modular Architecture:** Separation of hardware configuration (`app_config.h`), motor logic (`StepperDriver_A4988`), and the main process state machine.
+* **Closed-Loop Logic:** The system uses mechanical endstops to determine when the buffer is empty and needs more material, or when it is full to prevent grinding or snapping.
+* **Modular Architecture:** Clean separation of hardware configuration (`app_config.h`), PLC-style utilities, and the core process state machine (`main.cpp`).
 
 ## 🛠️ Features
-* **Auto-Feeding:** Automatically detects when the printer needs more filament and feeds a precise amount (e.g., 30mm bursts).
-* **Manual Override:** Physical buttons for "Jog Forward" and "Jog Backward" to make filament swaps easy.
-* **Safety Interlocks:** Built-in error states if the filament is missing or if an endstop is triggered unexpectedly.
-* **Status Monitoring:** Serial debugging and state tracking to monitor the feeding process in real-time.
+
+* **Auto-Feeding:** Automatically detects when the buffer runs empty (`PIN_ENDSTOP_NEGATIVE`) and feeds a precise amount (approx. 30mm bursts) at controlled speeds.
+* **Manual Override:** Physical buttons for "Jog Forward" and "Jog Backward" feature a 500ms filter delay to make manual filament loading and unloading easy.
+* **Safety Interlocks:** Built-in limits via the positive safety endstop (`PIN_ENDSTOP_POSITIVE`) to instantly halt automatic feeding before mechanical damage occurs.
+* **Status Monitoring:** Real-time serial debugging tracking sensor edges and state machine steps (e.g., tracking FSM steps like `Aktueller Schritt: 20`).
 
 ## 📁 Project Structure
-* `src/main.cpp`: The core state machine managing the feeding process.
-* `lib/StepperDriver_A4988/`: My custom-built motor controller.
-* `lib/Ton/` & `lib/EdgePosNeg/`: PLC-style timing and edge detection utilities.
-* `include/app_config.h`: Centralized pin mapping and hardware constants.
+
+* **src/main.cpp:** The core state machine managing the automated feeding process.
+* **src/app_config.h:** Centralized pin mapping, configuration flags, and hardware constants.
+* **src/Ton/ & src/EdgePosNeg/:** PLC-style timing and edge detection utilities used for advanced input debouncing.
 
 ## 🔧 Technical Stack
-* **Controller:** ESP32-C3
-* **Motor Driver:** A4988 Stepper Driver
-* **Language:** C++ (Object-Oriented)
-* **Toolchain:** PlatformIO
 
----
-*Status: Work in Progress. Currently working on the stepper driver if it works correctly on slower and faster speeds.*
+* **Controller:** ESP32-C3 (Waveshare ESP32-C3-DevKitM-1)
+* **Framework:** Arduino / PlatformIO
+* **Library:** AccelStepper
+* **Language:** C++ (Object-Oriented)
+* **Hardware:** Custom Soldered Perfboard (Lochrasterplatine)
