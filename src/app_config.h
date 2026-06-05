@@ -12,9 +12,9 @@
 
 #include <Arduino.h>
 
-#include "../lib/Ton/Ton.h"
-#include "../lib/EdgePosNeg/EdgePosNeg.h"
-#include "../lib/StepperDriver_A4988/StepperDriver_A4988.h"
+#include "Ton.h"
+#include "EdgePosNeg.h"
+#include "FastAccelStepper.h"
 
 #define DEBUGGING true
 
@@ -27,13 +27,11 @@
 #endif
 
 // Constants
-#define PIN_FEED_FORW_BUTTON 6
-#define PIN_FEED_BACKW_BUTTON 7
+#define PIN_FEED_FORW_BUTTON 7
+#define PIN_FEED_BACKW_BUTTON 6
 
-#define PIN_ENDSTOP_NEGATIVE 1
-#define PIN_ENDSTOP_POSITIVE 0
+#define PIN_ENDSTOP_NEGATIVE 2
+#define PIN_ENDSTOP_POSITIVE 3
 
-#define PIN_FILAMENT_PRESENT 5
-
-#define PIN_STEPPER_STEP 9
-#define PIN_STEPPER_DIR 10
+#define PIN_STEPPER_STEP 1
+#define PIN_STEPPER_DIR 0
