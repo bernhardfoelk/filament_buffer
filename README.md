@@ -6,7 +6,7 @@ This project is an automated filament delivery system (buffer) for 3D printers. 
 
 The entire system is fully assembled and soldered onto a permanent perfboard.
 
-![Filament buffer](images/filament_buffer_system.png)
+![Filament buffer](images/filament_buffer_system.jpeg)
 
 ## 🚀 The Engineering Behind It
 
