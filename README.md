@@ -8,6 +8,10 @@ The entire system is fully assembled and soldered onto a permanent perfboard.
 
 ![Filament buffer](images/filament_buffer_system.jpeg)
 
+UPDATE: The entire system is now fully assembled and soldered onto a custom PCB
+
+![Filament buffer](images/filament_buffer_pcb.jpeg)
+
 ## 🚀 The Engineering Behind It
 
 While many buffers are passive, this is an active system controlled by an ESP32 and a stepper motor.
