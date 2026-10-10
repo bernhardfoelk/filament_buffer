@@ -41,4 +41,4 @@ While many buffers are passive, this is an active system controlled by an ESP32 
 * **Framework:** Arduino / PlatformIO
 * **Library:** FastAccelStepper
 * **Language:** C++ (Object-Oriented)
-* **Hardware:** Custom Soldered Perfboard (Lochrasterplatine)
+* **Hardware:** PCB
