@@ -33,7 +33,7 @@ While many buffers are passive, this is an active system controlled by an ESP32 
 
 * **src/main.cpp:** The core state machine managing the automated feeding process.
 * **src/app_config.h:** Centralized pin mapping, configuration flags, and hardware constants.
-* **src/Ton/ & src/EdgePosNeg/:** PLC-style timing and edge detection utilities used for advanced input debouncing.
+* **lib/Ton/ & lib/EdgePosNeg/:** PLC-style timing and edge detection utilities used for advanced input debouncing.
 
 ## 🔧 Technical Stack
 
