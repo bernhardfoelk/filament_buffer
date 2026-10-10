@@ -17,7 +17,7 @@ UPDATE: The entire system is now fully assembled and soldered onto a custom PCB
 While many buffers are passive, this is an active system controlled by an ESP32 and a stepper motor.
 
 ### Technical Highlights:
-* **AccelStepper Integration:** Utilizing the asynchronous `AccelStepper` library to handle precise step, direction, acceleration, and positioning without blocking the main state machine loop.
+* **FastAccelStepper Integration:** Utilizing the asynchronous `AccelStepper` library to handle precise step, direction, acceleration, and positioning without blocking the main state machine loop.
 * **Industrial Logic Patterns:** Like my other projects, this uses my custom `Ton` (On-Delay) and `EdgePosNeg` classes to debounce sensors and manage timing-sensitive transitions.
 * **Endstop Logic:** The system uses endstops to determine when the buffer is empty and needs more material, or when it is full to prevent grinding or snapping.
 * **Modular Architecture:** Clean separation of hardware configuration (`app_config.h`), PLC-style utilities, and the core process state machine (`main.cpp`).
