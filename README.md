@@ -10,7 +10,7 @@ The entire system is fully assembled and soldered onto a permanent perfboard.
 
 UPDATE: The entire system is now fully assembled and soldered onto a custom PCB
 
-![Filament buffer](images/filament_buffer_pcb.jpeg)
+![Filament buffer](images/filament_buffer_pcb.png)
 
 ## 🚀 The Engineering Behind It
 
